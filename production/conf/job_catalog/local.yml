@@ -3,20 +3,13 @@ jobs:
     stages:
       - name: "clean-base-tables"
         tasks:
-          - name: "product"
-            params: {}
-          - name: "orders"
-            params: {}
-
-      - name: "clean-derivative-tables"
-        tasks:
-          - name: "sales"
+          - name: "housing"
             params: {}
       - name: "train-test-split"
         tasks:
           - name: "train-test"
             params:
-              target: unit_price
+              target: median_house_value
               test_size: 0.2
 
   - name: feat-engg
@@ -37,6 +30,12 @@ jobs:
           - name: "train-model"
             params:
               sampling_fraction: 0.1
+              xgboost:
+                gamma: 0.03
+                learning_rate: 0.1
+                max_depth: 3
+                min_child_weight: 6
+                n_estimators: 500
 
   - name: model-eval
     stages:

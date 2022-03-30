@@ -3,18 +3,19 @@ import logging
 import os.path as op
 
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer
+from xgboost import XGBRegressor
 
 from ta_lib.core.api import (
     get_dataframe,
     get_feature_names_from_column_transformer,
-    get_package_path,
     load_dataset,
     load_pipeline,
     register_processor,
     save_pipeline,
     DEFAULT_ARTIFACTS_PATH
 )
-from ta_lib.regression.api import SKLStatsmodelOLS
+from util import _custom_data_transform
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,9 @@ def train_model(context, params):
     """Train a regression model."""
     artifacts_folder = DEFAULT_ARTIFACTS_PATH
 
-    input_features_ds = "train/sales/features"
-    input_target_ds = "train/sales/target"
-    
+    input_features_ds = "train/housing/features"
+    input_target_ds = "train/housing/target"
+
     # load training datasets
     train_X = load_dataset(context, input_features_ds)
     train_y = load_dataset(context, input_target_ds)
@@ -50,14 +51,31 @@ def train_model(context, params):
         get_feature_names_from_column_transformer(features_transformer),
     )
     train_X = train_X[curated_columns]
+    train_X.rename(columns={"ocean_proximity_<1H OCEAN": "ocean_proximity_1H OCEAN"}, inplace=True)
 
-    # create training pipeline
-    reg_ppln_ols = Pipeline([("estimator", SKLStatsmodelOLS())])
+    imp_features = [
+        "housing_median_age", "longitude", "latitude",
+        "ocean_proximity_NEAR OCEAN", "median_income", "ocean_proximity_INLAND"
+    ]
 
-    # fit the training pipeline
-    reg_ppln_ols.fit(train_X, train_y.values.ravel())
+    xgb_training_pipe = Pipeline([
+        (
+            "", FunctionTransformer(
+                _custom_data_transform,
+                kw_args={"cols2keep": imp_features}
+            )
+        ),
+        (
+            "XGBoost", XGBRegressor(
+                gamma=params["xgboost"]["gamma"],
+                learning_rate=params["xgboost"]["learning_rate"],
+                max_depth=params["xgboost"]["max_depth"],
+                min_child_weight=params["xgboost"]["min_child_weight"],
+                n_estimators=params["xgboost"]["n_estimators"]
+            ))
+    ])
 
-    # save fitted training pipeline
+    xgb_training_pipe.fit(train_X, train_y)
     save_pipeline(
-        reg_ppln_ols, op.abspath(op.join(artifacts_folder, "train_pipeline.joblib"))
+        xgb_training_pipe, op.abspath(op.join(artifacts_folder, "train_pipeline.joblib"))
     )
