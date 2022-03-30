@@ -10,8 +10,8 @@ from invoke import Collection, UnexpectedExit, task
 
 # Some default values
 PACKAGE_NAME = "ta_lib"
-ENV_PREFIX = "ta-lib"
-ENV_PREFIX_PYSPARK = "ta-lib-pyspark"
+ENV_PREFIX = "housing"
+ENV_PREFIX_PYSPARK = "hosuing-pyspark"
 NUM_RETRIES = 10
 SLEEP_TIME = 1
 
@@ -32,13 +32,17 @@ _TASK_COLLECTIONS = []
 # ---------
 # Utilities
 # ---------
+
+
 def _get_env_name(platform, env):
     # FIXME: do we need platform ?
     return f"{ENV_PREFIX}-{env}"
 
+
 def _get_env_name_pyspark(platform, env):
     # FIXME: do we need platform ?
     return f"{ENV_PREFIX_PYSPARK}-{env}"
+
 
 def _change_permissions_recursive(path, mode):
     for root, dirs, files in os.walk(path, topdown=False):
@@ -189,7 +193,7 @@ def setup_env(c, platform=PLATFORM, env=DEV_ENV, force=False):
         is_jupyter = False
         if "jupyterlab-" in env_cfg:
             is_jupyter = True
-            
+
         if is_jupyter:
             # install jupyterlab extensions
             for extension in extensions["extensions"]:
@@ -201,9 +205,10 @@ def setup_env(c, platform=PLATFORM, env=DEV_ENV, force=False):
     # FIXME: create default folders that are expected. these need to be handled
     # when convering to cookiecutter templates
     os.makedirs(op.join(HERE, "logs"), exist_ok=True)
-    os.makedirs(op.join(HERE, "docs", "build","html"), exist_ok=True)
+    os.makedirs(op.join(HERE, "docs", "build", "html"), exist_ok=True)
     os.makedirs(op.join(HERE, "mlruns"), exist_ok=True)
     os.makedirs(op.join(HERE, "data"), exist_ok=True)
+
 
 @task(
     help={
@@ -264,7 +269,7 @@ def setup_env_pyspark(c, platform=PLATFORM, env=DEV_ENV, force=True):
             c.run(f"pip install -r {req_file} --no-deps")
 
         # install the current package
-        c.run(f"pip install -e {HERE}") # Todo: Alternative is a separate src folder for pyspark modules only
+        c.run(f"pip install -e {HERE}")  # Todo: Alternative is a separate src folder for pyspark modules only
 
         is_jupyter = False
         if "jupyterlab-" in env_cfg:
@@ -283,6 +288,7 @@ def setup_env_pyspark(c, platform=PLATFORM, env=DEV_ENV, force=True):
     os.makedirs(op.join(HERE, "logs"), exist_ok=True)
     os.makedirs(op.join(HERE, "mlruns"), exist_ok=True)
     os.makedirs(op.join(HERE, "data"), exist_ok=True)
+
 
 @task(name="setup_addon")
 def setup_addon(
@@ -417,8 +423,8 @@ def setup_info(c, platform=PLATFORM, env=DEV_ENV):
 def _build_docker_image(c):
     with tempfile.TemporaryDirectory() as tempdir:
         docker_file = op.join(HERE, "deploy", "docker", "Dockerfile")
-        shutil.copyfile(docker_file, op.join(tempdir,'Dockerfile'))
-        docker_file = op.join(tempdir,'Dockerfile')
+        shutil.copyfile(docker_file, op.join(tempdir, 'Dockerfile'))
+        docker_file = op.join(tempdir, 'Dockerfile')
         template = op.basename(HERE)
         if template == "regression-py":
             tag = "ct-reg-py"
@@ -430,8 +436,8 @@ def _build_docker_image(c):
             tag = "ct-rtm-py"
         else:
             raise ValueError(f"Unknown template : {template}")
-        shutil.copytree(op.join(HERE, "deploy"), op.join(tempdir,"deploy"))
-        shutil.copytree(op.join(HERE, "production"), op.join(tempdir,"production"))
+        shutil.copytree(op.join(HERE, "deploy"), op.join(tempdir, "deploy"))
+        shutil.copytree(op.join(HERE, "production"), op.join(tempdir, "production"))
         shutil.copytree(op.join(HERE, "src", "ta_lib"), op.join(tempdir, "src", "ta_lib"))
         shutil.copyfile(op.join(HERE, "setup.py"), op.join(tempdir, "setup.py"))
         shutil.copyfile(op.join(HERE, "setup.cfg"), op.join(tempdir, "setup.cfg"))
@@ -480,6 +486,7 @@ def setup_ci_env(c, platform=PLATFORM, force=False):
 
         # install the current package
         c.run(f"pip install -e {HERE}")
+
 
 _create_task_collection(
     "dev",
@@ -625,6 +632,21 @@ _create_task_collection("build", build_docs)
 
 
 # -----------
+# Get tasks
+# -----------
+@task(name="complexity")
+def complexity_score(c, platform=PLATFORM, env=DEV_ENV):
+    """Get complexity score of the production files"""
+    env_name = _get_env_name(platform, env)
+    # FIXME: run as a daemon and support start/stop using pidfile
+    with py_env(c, env_name):
+        c.run("radon cc --ignore 'docs,tests,databricks,src' .")
+
+
+_create_task_collection("get", complexity_score)
+
+
+# -----------
 # Launch stuff
 # -----------
 @task(name="jupyterlab")
@@ -639,6 +661,7 @@ def start_jupyterlab(
             f"jupyter lab --ip {ip} --port {port} --NotebookApp.token={token} "
             f"--NotebookApp.password={password} --no-browser"
         )
+
 
 @task(name="jupyterlab_pyspark")
 def start_jupyterlab_pyspark(
@@ -695,7 +718,6 @@ _create_task_collection(
 )
 
 
-
 # --------------
 # Root namespace
 # --------------
@@ -709,5 +731,3 @@ if OS == "windows":
     config["pty"] = False
 
 ns.configure(config)
-
-
