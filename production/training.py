@@ -9,32 +9,15 @@ from xgboost import XGBRegressor
 from ta_lib.core.api import (
     get_dataframe,
     get_feature_names_from_column_transformer,
-    get_package_path,
     load_dataset,
     load_pipeline,
     register_processor,
     save_pipeline,
     DEFAULT_ARTIFACTS_PATH
 )
-from ta_lib.regression.api import SKLStatsmodelOLS
+from util import _custom_data_transform
 
 logger = logging.getLogger(__name__)
-
-
-# def _custom_data_transform(df, cols2keep=None):
-#     """Transformation to drop some columns in the data
-
-#     Parameters
-#     ----------
-#         df - pd.DataFrame
-#         cols2keep - columns to keep in the dataframe
-#     """
-#     cols2keep = cols2keep or []
-#     if len(cols2keep):
-#         return (df
-#                 .select_columns(cols2keep))
-#     else:
-#         return df
 
 
 @register_processor("model-gen", "train-model")
@@ -70,15 +53,18 @@ def train_model(context, params):
     train_X = train_X[curated_columns]
     train_X.rename(columns={"ocean_proximity_<1H OCEAN": "ocean_proximity_1H OCEAN"}, inplace=True)
 
-    # imp_features = ["housing_median_age", "longitude", "latitude", "ocean_proximity_NEAR OCEAN", "median_income", "ocean_proximity_INLAND"]
+    imp_features = [
+        "housing_median_age", "longitude", "latitude",
+        "ocean_proximity_NEAR OCEAN", "median_income", "ocean_proximity_INLAND"
+    ]
 
     xgb_training_pipe = Pipeline([
-        # (
-        #     "", FunctionTransformer(
-        #         _custom_data_transform,
-        #         kw_args={"cols2keep": imp_features}
-        #     )
-        # ),
+        (
+            "", FunctionTransformer(
+                _custom_data_transform,
+                kw_args={"cols2keep": imp_features}
+            )
+        ),
         (
             "XGBoost", XGBRegressor(
                 gamma=params["xgboost"]["gamma"],
@@ -93,5 +79,3 @@ def train_model(context, params):
     save_pipeline(
         xgb_training_pipe, op.abspath(op.join(artifacts_folder, "train_pipeline.joblib"))
     )
-
-    # reg_ppln_ols.fit(train_X, train_y.values.ravel())

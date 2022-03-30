@@ -1,10 +1,10 @@
 """Processors for the model scoring/evaluation step of the worklow."""
 import os.path as op
 
-from ta_lib.core.api import (get_dataframe,
-                             get_feature_names_from_column_transformer,
-                             get_package_path, hash_object, load_dataset,
-                             load_pipeline, register_processor, save_dataset, DEFAULT_ARTIFACTS_PATH)
+from ta_lib.core.api import (
+    get_dataframe, get_feature_names_from_column_transformer, load_dataset,
+    load_pipeline, register_processor, save_dataset, DEFAULT_ARTIFACTS_PATH
+)
 
 
 @register_processor("model-eval", "score-model")

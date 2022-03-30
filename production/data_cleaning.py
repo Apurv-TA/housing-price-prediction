@@ -4,7 +4,6 @@ The processors in this step, apply the various cleaning steps identified
 during EDA to create the training datasets.
 """
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit
 
 from ta_lib.core.api import (
